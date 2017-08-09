@@ -1,5 +1,6 @@
 
-<?xml version="1.0" encoding="UTF-8"?> <zabbix_export>
+<?xml version="1.0" encoding="UTF-8"?> 
+<zabbix_export>
     <version>3.2</version>
     <date>2017-03-05T19:25:03Z</date>
     <groups>
@@ -73,4 +74,5 @@
             <templates/>
             <screens/>
         </template>
-    </templates> </zabbix_export>
+    </templates> 
+</zabbix_export>
