@@ -41,6 +41,6 @@ except purestorage.PureHTTPError as err:
 except purestorage.PureError as err:
     print("Error while getting volumes information : {0}".format(err.reason))
 except ValueError:
-    print("Error while getting volumes information due to an error with the arguments (Token,IP,...)")
+    print("Error while getting volumes information due to an error with the arguments (Token,IP)")
 except:
     print("Unknow error while getting volumes information")
