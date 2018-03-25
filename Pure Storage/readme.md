@@ -1,2 +1,2 @@
 # Zabbix and Pure Storage monitoring
-More information here : https://jeremyverda.net/zabbix-pure-storage-monitoring-v2/
+More information here : https://jeremyverda.net/zabbix-and-pure-storage-monitoring-v2/
