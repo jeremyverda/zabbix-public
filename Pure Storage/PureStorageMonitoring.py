@@ -7,8 +7,11 @@ URL : jeremyverda.net
 import purestorage
 import urllib3
 import sys
-import subprocess
 import os
+from pyzabbix import ZabbixMetric, ZabbixSender
+
+'''Disable SSL Warnings'''
+urllib3.disable_warnings()
 
 '''
 LLD function
@@ -20,13 +23,8 @@ def pure_volume_lld():
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
 
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
         volumeList = arrayConnect.list_volumes()
 
         '''Print data to console for Zabbix discovery'''
@@ -48,8 +46,8 @@ def pure_volume_lld():
         print("Error while getting volumes information : {0}".format(err.reason))
     except ValueError:
         print("Error while getting volumes information due to an error with the arguments (Token,IP)")
-    except:
-        print("Unknow error while getting volumes information")
+    except Exception as e:
+        print("Unknow error while getting volumes information : "+str(e))
 
 '''
 This module is intended to get the Pure Storage Array information : 
@@ -73,13 +71,8 @@ def pure_array_info():
         host = str(sys.argv[4]) #Host name (for the sender)
         zabbixIP = str(sys.argv[5]) #Zabbix Proxy or Server IP (for the sender)
 
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
         arraySpace = arrayConnect.get(space="true")
         arrayInfo = arrayConnect.get()
         arrayPhoneHome = arrayConnect.get_phonehome()
@@ -90,48 +83,64 @@ def pure_array_info():
         FNULL = open(os.devnull, 'w')
 
         '''Sending data'''
+        metrics = []
         if "capacity" in arrayValues:
             arrayCapacity = str(arrayValues["capacity"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.capacity","-o",arrayCapacity],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.capacity',arrayCapacity)
+            metrics.append(m)
         if "volumes" in arrayValues:
             arrayVolumesSize = str(arrayValues["volumes"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.volumes.size","-o",arrayVolumesSize],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.volumes.size',arrayVolumesSize)
+            metrics.append(m)
         if "data_reduction" in arrayValues:
             arrayDataReduction = str(arrayValues["data_reduction"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.data.reduction","-o",arrayDataReduction],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.data.reduction',arrayDataReduction)
+            metrics.append(m)
         if "total" in arrayValues:
             arrayUsedSpace = str(arrayValues["total"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.used.space","-o",arrayUsedSpace],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.used.space',arrayUsedSpace)
+            metrics.append(m)
         if "shared_space" in arrayValues:
             arraySharedSpace = str(arrayValues["shared_space"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.shared.space","-o",arraySharedSpace],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.shared.space',arraySharedSpace)
+            metrics.append(m)
         if "thin_provisioning" in arrayValues:
             arrayThinProvisioning = str(arrayValues["thin_provisioning"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.thin.provisioning","-o",arrayThinProvisioning],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.thin.provisioning',arrayThinProvisioning)
+            metrics.append(m)
         if "total_reduction" in arrayValues:
             arrayTotalReduction = str(arrayValues["total_reduction"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.total.data.reduction","-o",arrayTotalReduction],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.total.data.reduction',arrayTotalReduction)
+            metrics.append(m)
         if "array_name" in arrayInfo:
             arrayHostname = arrayInfo["array_name"]
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.hostname","-o",arrayHostname],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.hostname',arrayHostname)
+            metrics.append(m)
         if "version" in arrayInfo:
             arrayVersion = str(arrayInfo["version"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.version","-o",arrayVersion],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.array.version',arrayVersion)
+            metrics.append(m)
         if "status" in arrayRemoteAssist:
             remoteAssist = arrayRemoteAssist["status"]
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.remote.assist","-o",remoteAssist],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,'pure.remote.assist',remoteAssist)
+            metrics.append(m)
         if "phonehome" in arrayPhoneHome:
             phoneHome = arrayPhoneHome["phonehome"]
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.phone.home","-o",phoneHome],stdout=FNULL,stderr=subprocess.STDOUT)
-
+            m = ZabbixMetric(host,'pure.phone.home',phoneHome)
+            metrics.append(m)
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         '''Send 1 to give a result to Zabbix'''
         print(1)
 
-    except:
+    except Exception as e:
         '''
         Sending 0 to Zabbix instead of a Python error.
         Like that the items won't be considered as "unsupported"
         '''
+        metrics = [ZabbixMetric(host,'pure.info.launcher.error',str(e))]
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         print(0)
 
 '''
@@ -155,77 +164,94 @@ def pure_volume_monitoring():
         '''Get the argument from Zabbix'''
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
-        volume = str(sys.argv[4]) #Volume Name
-        host = str(sys.argv[5]) #Host name (for the sender)
-        zabbixIP = str(sys.argv[6]) #Zabbix Proxy or Server IP (for the sender)
-
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        host = str(sys.argv[4]) #Host name (for the sender)
+        zabbixIP = str(sys.argv[5]) #Zabbix Proxy or Server IP (for the sender)
 
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
-        volumeMonitoring = arrayConnect.get_volume(volume=volume,action="monitor")
-        volumeSpace = arrayConnect.get_volume(volume=volume,space="true")
-        volumeInfo = arrayConnect.get_volume(volume=volume)
-        arrayValues = volumeMonitoring[0]
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
+        volumeList = arrayConnect.list_volumes()
+        metrics = []
+        for i in volumeList:
+            volume = i["name"]
 
-        '''Will disable the output to console'''
-        FNULL = open(os.devnull, 'w')
+            volumeMonitoring = arrayConnect.get_volume(volume=volume,action="monitor")
+            volumeSpace = arrayConnect.get_volume(volume=volume,space="true")
+            volumeInfo = arrayConnect.get_volume(volume=volume)
+            arrayValues = volumeMonitoring[0]
 
-        '''Sending data'''
-        if "input_per_sec" in arrayValues:
-            arrayInputPerSec = str(arrayValues["input_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.input.per.second["+volume+"]","-o",arrayInputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "output_per_sec" in arrayValues:    
-            arrayOutputPerSec = str(arrayValues["output_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.output.per.second["+volume+"]","-o",arrayOutputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "reads_per_sec" in arrayValues:
-            arrayReadPerSec = str(arrayValues["reads_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.read.per.sec["+volume+"]","-o",arrayReadPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "san_usec_per_read_op" in arrayValues:
-            arraySanUsecPerReadOp = str(arrayValues["san_usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.san.usec.per.read["+volume+"]","-o",arraySanUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "san_usec_per_write_op" in arrayValues:
-            arraySanUsecPerWriteOp = str(arrayValues["san_usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.san.usec.per.write["+volume+"]","-o",arraySanUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "usec_per_read_op" in arrayValues:
-            arrayUsecPerReadOp = str(arrayValues["usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.usec.per.read["+volume+"]","-o",arrayUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "usec_per_write_op" in arrayValues:
-            arrayUsecPerWriteOp = str(arrayValues["usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.usec.per.write["+volume+"]","-o",arrayUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "writes_per_sec" in arrayValues:
-            arrayWritePerSec = str(arrayValues["writes_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.write.per.sec["+volume+"]","-o",arrayWritePerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "size" in volumeInfo:
-            arrayVolumeSize = str(volumeInfo["size"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.size["+volume+"]","-o",arrayVolumeSize],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "snapshots" in volumeSpace:
-            volumeSnapshots = str(volumeSpace["snapshots"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.snapshots.size["+volume+"]","-o",volumeSnapshots],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "data_reduction" in volumeSpace:
-            volumeDataReduction = str(volumeSpace["data_reduction"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.data.reduction["+volume+"]","-o",volumeDataReduction],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "thin_provisioning" in volumeSpace:
-            volumeThinProvisioning = str(volumeSpace["thin_provisioning"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.thin.provisioning["+volume+"]","-o",volumeThinProvisioning],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "total_reduction" in volumeSpace:
-            volumeTotalReduction = str(volumeSpace["total_reduction"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.total.data.reduction["+volume+"]","-o",volumeTotalReduction],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "volumes" in volumeSpace:
-            volumeUsedSpace = str(volumeSpace["volumes"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.volume.used.space["+volume+"]","-o",volumeUsedSpace],stdout=FNULL,stderr=subprocess.STDOUT)
+            '''Will disable the output to console'''
+            FNULL = open(os.devnull, 'w')
 
+            '''Sending data'''
+            if "input_per_sec" in arrayValues:
+                arrayInputPerSec = str(arrayValues["input_per_sec"])
+                m = ZabbixMetric(host,"pure.volume.input.per.second["+volume+"]",arrayInputPerSec)
+                metrics.append(m)
+            if "output_per_sec" in arrayValues:    
+                arrayOutputPerSec = str(arrayValues["output_per_sec"])
+                m = ZabbixMetric(host,"pure.volume.output.per.second["+volume+"]",arrayOutputPerSec)
+                metrics.append(m)
+            if "reads_per_sec" in arrayValues:
+                arrayReadPerSec = str(arrayValues["reads_per_sec"])
+                m = ZabbixMetric(host,"pure.volume.read.per.sec["+volume+"]",arrayReadPerSec)
+                metrics.append(m)
+            if "san_usec_per_read_op" in arrayValues:
+                arraySanUsecPerReadOp = str(arrayValues["san_usec_per_read_op"])
+                m = ZabbixMetric(host,"pure.volume.san.usec.per.read["+volume+"]",arraySanUsecPerReadOp)
+                metrics.append(m)
+            if "san_usec_per_write_op" in arrayValues:
+                arraySanUsecPerWriteOp = str(arrayValues["san_usec_per_write_op"])
+                m = ZabbixMetric(host,"pure.volume.san.usec.per.write["+volume+"]",arraySanUsecPerWriteOp)
+                metrics.append(m)
+            if "usec_per_read_op" in arrayValues:
+                arrayUsecPerReadOp = str(arrayValues["usec_per_read_op"])
+                m = ZabbixMetric(host,"pure.volume.usec.per.read["+volume+"]",arrayUsecPerReadOp)
+                metrics.append(m)
+            if "usec_per_write_op" in arrayValues:
+                arrayUsecPerWriteOp = str(arrayValues["usec_per_write_op"])
+                m = ZabbixMetric(host,"pure.volume.usec.per.write["+volume+"]",arrayUsecPerWriteOp)
+                metrics.append(m)
+            if "writes_per_sec" in arrayValues:
+                arrayWritePerSec = str(arrayValues["writes_per_sec"])
+                m = ZabbixMetric(host,"pure.volume.write.per.sec["+volume+"]",arrayWritePerSec)
+                metrics.append(m)
+            if "size" in volumeInfo:
+                arrayVolumeSize = str(volumeInfo["size"])
+                m = ZabbixMetric(host,"pure.volume.size["+volume+"]",arrayVolumeSize)
+                metrics.append(m)
+            if "snapshots" in volumeSpace:
+                volumeSnapshots = str(volumeSpace["snapshots"])
+                m = ZabbixMetric(host,"pure.volume.snapshots.size["+volume+"]",volumeSnapshots)
+                metrics.append(m)
+            if "data_reduction" in volumeSpace:
+                volumeDataReduction = str(volumeSpace["data_reduction"])
+                m = ZabbixMetric(host,"pure.volume.data.reduction["+volume+"]",volumeDataReduction)
+                metrics.append(m)
+            if "thin_provisioning" in volumeSpace:
+                volumeThinProvisioning = str(volumeSpace["thin_provisioning"])
+                m = ZabbixMetric(host,"pure.volume.thin.provisioning["+volume+"]",volumeThinProvisioning)
+                metrics.append(m)
+            if "total_reduction" in volumeSpace:
+                volumeTotalReduction = str(volumeSpace["total_reduction"])
+                m = ZabbixMetric(host,"pure.volume.total.data.reduction["+volume+"]",volumeTotalReduction)
+                metrics.append(m)
+            if "volumes" in volumeSpace:
+                volumeUsedSpace = str(volumeSpace["volumes"])
+                m = ZabbixMetric(host,"pure.volume.used.space["+volume+"]",volumeUsedSpace)
+                metrics.append(m)
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         '''Send 1 to give a result to Zabbix'''
         print(1)
 
-    except:
+    except Exception as e:
         '''
         Sending 0 to Zabbix instead of a Python error.
         Like that the items won't be considered as "unsupported"
         '''
+        metrics = [ZabbixMetric(host,"pure.volume.monitoring.launcher.error",str(e))]
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         print(0)
 
 '''
@@ -248,13 +274,8 @@ def pure_array_monitoring():
         host = str(sys.argv[4]) #Host name (for the sender)
         zabbixIP = str(sys.argv[5]) #Zabbix Proxy or Server IP (for the sender)
 
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
         arrayMonitoring = arrayConnect.get(action="monitor")
         arrayValues = arrayMonitoring[0]
 
@@ -262,42 +283,56 @@ def pure_array_monitoring():
         FNULL = open(os.devnull, 'w')
 
         '''Send data'''
+        metrics = []
         if "input_per_sec" in arrayValues:
             arrayInputPerSec = str(arrayValues["input_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.input.per.second","-o",arrayInputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.input.per.second",arrayInputPerSec)
+            metrics.append(m)
         if "output_per_sec" in arrayValues:
             arrayOutputPerSec = str(arrayValues["output_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.output.per.second","-o",arrayOutputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.output.per.second",arrayOutputPerSec)
+            metrics.append(m)
         if "queue_depth" in arrayValues:
             arrayQueueDepth = str(arrayValues["queue_depth"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.queue.depth","-o",arrayQueueDepth],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.queue.depth",arrayQueueDepth)
+            metrics.append(m)
         if "reads_per_sec" in arrayValues:
             arrayReadPerSec = str(arrayValues["reads_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.read.per.sec","-o",arrayReadPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.read.per.sec",arrayReadPerSec)
+            metrics.append(m)
         if "san_usec_per_read_op" in arrayValues:
             arraySanUsecPerReadOp = str(arrayValues["san_usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.san.usec.per.read","-o",arraySanUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.san.usec.per.read",arraySanUsecPerReadOp)
+            metrics.append(m)
         if "san_usec_per_write_op" in arrayValues:
             arraySanUsecPerWriteOp = str(arrayValues["san_usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.san.usec.per.write","-o",arraySanUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.san.usec.per.write",arraySanUsecPerWriteOp)
+            metrics.append(m)
         if "usec_per_read_op" in arrayValues:
             arrayUsecPerReadOp = str(arrayValues["usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.usec.per.read","-o",arrayUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.usec.per.read",arrayUsecPerReadOp)
+            metrics.append(m)
         if "usec_per_write_op" in arrayValues:
             arrayUsecPerWriteOp = str(arrayValues["usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.usec.per.write","-o",arrayUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
+            m = ZabbixMetric(host,"pure.array.usec.per.write",arrayUsecPerWriteOp)
+            metrics.append(m)
         if "writes_per_sec" in arrayValues:
             arrayWritePerSec = str(arrayValues["writes_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.array.write.per.sec","-o",arrayWritePerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-
+            m = ZabbixMetric(host,"pure.array.write.per.sec",arrayWritePerSec)
+            metrics.append(m)
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         '''Send 1 to give a result to Zabbix'''
         print(1)
 
-    except:
+    except Exception as e:
         '''
         Sending 0 to Zabbix instead of a Python error
         Like that the items won't be considered as unsupported
         '''
+        metrics = [ZabbixMetric(host,"pure.monitoring.launcher.error",str(e))]
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         print(0)
 
 '''
@@ -310,13 +345,8 @@ def pure_host_lld():
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
 
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
         hostList = arrayConnect.list_hosts()
 
         '''Print data to console for Zabbix discovery'''
@@ -338,8 +368,8 @@ def pure_host_lld():
         print("Error while getting hosts information : {0}".format(err.reason))
     except ValueError:
         print("Error while getting hosts information due to an error with the arguments (Token,IP)")
-    except:
-        print("Unknow error while getting hosts information")
+    except Exception as e:
+        print("Unknow error while getting hosts information : "+str(e))
 '''
 This module is intended to get the Pure Storage host monitoring information : 
     * Writes per second
@@ -356,56 +386,63 @@ def pure_host_monitoring():
         '''Get the argument from Zabbix'''
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
-        hostname = str(sys.argv[4]) #Host Name
-        host = str(sys.argv[5]) #Host name (for the sender)
-        zabbixIP = str(sys.argv[6]) #Zabbix Proxy or Server IP (for the sender)
-
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        host = str(sys.argv[4]) #Host name (for the sender)
+        zabbixIP = str(sys.argv[5]) #Zabbix Proxy or Server IP (for the sender)
 
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
-        hostMonitoring = arrayConnect.get_host(host=hostname,action="monitor")
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
+        hostList = arrayConnect.list_hosts()
+        metrics = []
+        for i in hostList:
+            hostname = i["name"]
+            hostMonitoring = arrayConnect.get_host(host=hostname,action="monitor")
 
-        '''Will disable the output to console'''
-        FNULL = open(os.devnull, 'w')
-
-        '''Sending data'''
-        if "input_per_sec" in hostMonitoring:
-            arrayInputPerSec = str(hostMonitoring["input_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.input.per.second["+hostname+"]","-o",arrayInputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "output_per_sec" in hostMonitoring:    
-            arrayOutputPerSec = str(hostMonitoring["output_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.output.per.second["+hostname+"]","-o",arrayOutputPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "reads_per_sec" in hostMonitoring:
-            arrayReadPerSec = str(hostMonitoring["reads_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.read.per.sec["+hostname+"]","-o",arrayReadPerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "san_usec_per_read_op" in hostMonitoring:
-            arraySanUsecPerReadOp = str(hostMonitoring["san_usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.san.usec.per.read["+hostname+"]","-o",arraySanUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "san_usec_per_write_op" in hostMonitoring:
-            arraySanUsecPerWriteOp = str(hostMonitoring["san_usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.san.usec.per.write["+hostname+"]","-o",arraySanUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "usec_per_read_op" in hostMonitoring:
-            arrayUsecPerReadOp = str(hostMonitoring["usec_per_read_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.usec.per.read["+hostname+"]","-o",arrayUsecPerReadOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "usec_per_write_op" in hostMonitoring:
-            arrayUsecPerWriteOp = str(hostMonitoring["usec_per_write_op"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.usec.per.write["+hostname+"]","-o",arrayUsecPerWriteOp],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "writes_per_sec" in hostMonitoring:
-            arrayWritePerSec = str(hostMonitoring["writes_per_sec"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.host.write.per.sec["+hostname+"]","-o",arrayWritePerSec],stdout=FNULL,stderr=subprocess.STDOUT)
-
+            '''Sending data'''
+            if "input_per_sec" in hostMonitoring:
+                arrayInputPerSec = str(hostMonitoring["input_per_sec"])
+                m = ZabbixMetric(host,"pure.host.input.per.second["+hostname+"]",arrayInputPerSec)
+                metrics.append(m)
+            if "output_per_sec" in hostMonitoring:    
+                arrayOutputPerSec = str(hostMonitoring["output_per_sec"])
+                m = ZabbixMetric(host,"pure.host.output.per.second["+hostname+"]",arrayOutputPerSec)
+                metrics.append(m)
+            if "reads_per_sec" in hostMonitoring:
+                arrayReadPerSec = str(hostMonitoring["reads_per_sec"])
+                m = ZabbixMetric(host,"pure.host.read.per.sec["+hostname+"]",arrayReadPerSec)
+                metrics.append(m)
+            if "san_usec_per_read_op" in hostMonitoring:
+                arraySanUsecPerReadOp = str(hostMonitoring["san_usec_per_read_op"])
+                m = ZabbixMetric(host,"pure.host.san.usec.per.read["+hostname+"]",arraySanUsecPerReadOp)
+                metrics.append(m)
+            if "san_usec_per_write_op" in hostMonitoring:
+                arraySanUsecPerWriteOp = str(hostMonitoring["san_usec_per_write_op"])
+                m = ZabbixMetric(host,"pure.host.san.usec.per.write["+hostname+"]",arraySanUsecPerWriteOp)
+                metrics.append(m)
+            if "usec_per_read_op" in hostMonitoring:
+                arrayUsecPerReadOp = str(hostMonitoring["usec_per_read_op"])
+                m = ZabbixMetric(host,"pure.host.usec.per.read["+hostname+"]",arrayUsecPerReadOp)
+                metrics.append(m)
+            if "usec_per_write_op" in hostMonitoring:
+                arrayUsecPerWriteOp = str(hostMonitoring["usec_per_write_op"])
+                m = ZabbixMetric(host,"pure.host.usec.per.write["+hostname+"]",arrayUsecPerWriteOp)
+                metrics.append(m)
+            if "writes_per_sec" in hostMonitoring:
+                arrayWritePerSec = str(hostMonitoring["writes_per_sec"])
+                m = ZabbixMetric(host,"pure.host.write.per.sec["+hostname+"]",arrayWritePerSec)
+                metrics.append(m)
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         '''Send 1 to give a result to Zabbix'''
         print(1)
 
-    except:
+    except Exception as e:
         '''
         Sending 0 to Zabbix instead of a Python error.
         Like that the items won't be considered as "unsupported"
         '''
+        metrics = [ZabbixMetric(host,"pure.host.monitoring.launcher.error",str(e))]
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         print(0)   
 
 '''
@@ -418,13 +455,8 @@ def pure_disk_lld():
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
 
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
         diskList = arrayConnect.list_drives()
 
         '''Print data to console for Zabbix discovery'''
@@ -446,8 +478,8 @@ def pure_disk_lld():
         print("Error while getting disks information : {0}".format(err.reason))
     except ValueError:
         print("Error while getting disks information due to an error with the arguments (Token,IP)")
-    except:
-        print("Unknow error while getting disks information")
+    except Exception as e:
+        print("Unknow error while getting disks information : "+str(e))
 
 '''
 This module is intended to get the Pure Storage disk monitoring information : 
@@ -462,47 +494,52 @@ def pure_disk_monitoring():
         '''Get the argument from Zabbix'''
         ip = str(sys.argv[2]) #IP of the Pure Storage Array
         token = str(sys.argv[3]) #API Token
-        disk = str(sys.argv[4]) #disk Name
-        host = str(sys.argv[5]) #Host name (for the sender)
-        zabbixIP = str(sys.argv[6]) #Zabbix Proxy or Server IP (for the sender)
-
-        '''
-        Disable the SSL Warning from the output
-        '''
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        host = str(sys.argv[4]) #Host name (for the sender)
+        zabbixIP = str(sys.argv[5]) #Zabbix Proxy or Server IP (for the sender)
 
         '''Get data'''
-        arrayConnect = purestorage.FlashArray(ip,api_token=token)
-        diskMonitoring = arrayConnect.get_drive(drive=disk)
+        arrayConnect = purestorage.FlashArray(ip,api_token=token,verify_https=False)
+        diskList = arrayConnect.list_drives()
+        metrics = []
+        for i in diskList:
+            disk = i["name"]
+            diskMonitoring = arrayConnect.get_drive(drive=disk)
 
-        '''Will disable the output to console'''
-        FNULL = open(os.devnull, 'w')
-
-        '''Sending data'''
-        if "status" in diskMonitoring:
-            diskStatus = str(diskMonitoring["status"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.disk.status["+disk+"]","-o",diskStatus],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "capacity" in diskMonitoring:    
-            diskCapacity = str(diskMonitoring["capacity"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.disk.capacity["+disk+"]","-o",diskCapacity],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "protocol" in diskMonitoring:
-            diskProtocol = str(diskMonitoring["protocol"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.disk.protocol["+disk+"]","-o",diskProtocol],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "type" in diskMonitoring:
-            diskType = str(diskMonitoring["type"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.disk.type["+disk+"]","-o",diskType],stdout=FNULL,stderr=subprocess.STDOUT)
-        if "last_failure" in diskMonitoring:
-            diskLastFailure = str(diskMonitoring["last_failure"])
-            subprocess.call(["zabbix_sender","-z",zabbixIP,"-s",host,"-k","pure.disk.last.failure["+disk+"]","-o",diskLastFailure],stdout=FNULL,stderr=subprocess.STDOUT)
-        
+            '''Sending data'''
+            
+            if "status" in diskMonitoring:
+                diskStatus = str(diskMonitoring["status"])
+                m = ZabbixMetric(host,"pure.disk.status["+disk+"]",diskStatus)
+                metrics.append(m)
+            if "capacity" in diskMonitoring:    
+                diskCapacity = str(diskMonitoring["capacity"])
+                m = ZabbixMetric(host,"pure.disk.capacity["+disk+"]",diskCapacity)
+                metrics.append(m)
+            if "protocol" in diskMonitoring:
+                diskProtocol = str(diskMonitoring["protocol"])
+                m = ZabbixMetric(host,"pure.disk.protocol["+disk+"]",diskProtocol)
+                metrics.append(m)
+            if "type" in diskMonitoring:
+                diskType = str(diskMonitoring["type"])
+                m = ZabbixMetric(host,"pure.disk.type["+disk+"]",diskType)
+                metrics.append(m)
+            if "last_failure" in diskMonitoring:
+                diskLastFailure = str(diskMonitoring["last_failure"])
+                m = ZabbixMetric(host,"pure.disk.last.failure["+disk+"]",diskLastFailure)
+                metrics.append(m)
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         '''Send 1 to give a result to Zabbix'''
         print(1)
 
-    except:
+    except Exception as e:
         '''
         Sending 0 to Zabbix instead of a Python error.
         Like that the items won't be considered as "unsupported"
         '''
+        metrics = [ZabbixMetric(host,"pure.disk.monitoring.launcher.error",str(e))]
+        data = ZabbixSender(zabbixIP)
+        data.send(metrics)
         print(0)   
 
 '''main function'''
