@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>4.0</version>
-    <date>2018-10-21T12:47:17Z</date>
+    <date>2018-11-23T20:46:40Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -2692,53 +2692,7 @@
                             <verify_peer>0</verify_peer>
                             <verify_host>0</verify_host>
                             <application_prototypes/>
-<<<<<<< HEAD
                             <master_item/>
-=======
-                            <master_item_prototype/>
-                        </item_prototype>
-                        <item_prototype>
-                            <name>{#HOSTNAME} Monitoring Launch</name>
-                            <type>10</type>
-                            <snmp_community/>
-                            <snmp_oid/>
-                            <key>PureStorageMonitoring.py[&quot;hostMonitoring&quot;,{HOST.IP},{$PURE_TOKEN_API},{#HOSTNAME},{HOST.HOST},{$PURE_ZBX}]</key>
-                            <delay>30s</delay>
-                            <history>1d</history>
-                            <trends>14d</trends>
-                            <status>0</status>
-                            <value_type>3</value_type>
-                            <allowed_hosts/>
-                            <units/>
-                            <snmpv3_contextname/>
-                            <snmpv3_securityname/>
-                            <snmpv3_securitylevel>0</snmpv3_securitylevel>
-                            <snmpv3_authprotocol>0</snmpv3_authprotocol>
-                            <snmpv3_authpassphrase/>
-                            <snmpv3_privprotocol>0</snmpv3_privprotocol>
-                            <snmpv3_privpassphrase/>
-                            <params/>
-                            <ipmi_sensor/>
-                            <authtype>0</authtype>
-                            <username/>
-                            <password/>
-                            <publickey/>
-                            <privatekey/>
-                            <port/>
-                            <description/>
-                            <inventory_link>0</inventory_link>
-                            <applications>
-                                <application>
-                                    <name>Host Monitoring</name>
-                                </application>
-                            </applications>
-                            <valuemap/>
-                            <logtimefmt/>
-                            <preprocessing/>
-                            <jmx_endpoint/>
-                            <application_prototypes/>
-                            <master_item_prototype/>
->>>>>>> 2d3df85d4f27cff25300949d5471a6a92913f582
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes/>
@@ -3766,53 +3720,7 @@
                             <verify_peer>0</verify_peer>
                             <verify_host>0</verify_host>
                             <application_prototypes/>
-<<<<<<< HEAD
                             <master_item/>
-=======
-                            <master_item_prototype/>
-                        </item_prototype>
-                        <item_prototype>
-                            <name>{#VOLUMENAME} Monitoring Launch</name>
-                            <type>10</type>
-                            <snmp_community/>
-                            <snmp_oid/>
-                            <key>PureStorageMonitoring.py[&quot;volumeMonitoring&quot;,{HOST.IP},{$PURE_TOKEN_API},{#VOLUMENAME},{HOST.HOST},{$PURE_ZBX}]</key>
-                            <delay>30s</delay>
-                            <history>1d</history>
-                            <trends>14d</trends>
-                            <status>0</status>
-                            <value_type>3</value_type>
-                            <allowed_hosts/>
-                            <units/>
-                            <snmpv3_contextname/>
-                            <snmpv3_securityname/>
-                            <snmpv3_securitylevel>0</snmpv3_securitylevel>
-                            <snmpv3_authprotocol>0</snmpv3_authprotocol>
-                            <snmpv3_authpassphrase/>
-                            <snmpv3_privprotocol>0</snmpv3_privprotocol>
-                            <snmpv3_privpassphrase/>
-                            <params/>
-                            <ipmi_sensor/>
-                            <authtype>0</authtype>
-                            <username/>
-                            <password/>
-                            <publickey/>
-                            <privatekey/>
-                            <port/>
-                            <description/>
-                            <inventory_link>0</inventory_link>
-                            <applications>
-                                <application>
-                                    <name>Volume Monitoring</name>
-                                </application>
-                            </applications>
-                            <valuemap/>
-                            <logtimefmt/>
-                            <preprocessing/>
-                            <jmx_endpoint/>
-                            <application_prototypes/>
-                            <master_item_prototype/>
->>>>>>> 2d3df85d4f27cff25300949d5471a6a92913f582
                         </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
