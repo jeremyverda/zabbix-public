@@ -11,7 +11,7 @@ import os
 from pyzabbix import ZabbixMetric, ZabbixSender
 
 '''Disable SSL Warnings'''
-urllib3.disable_warnings()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 '''
 LLD function
