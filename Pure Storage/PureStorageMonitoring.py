@@ -9,9 +9,11 @@ import urllib3
 import sys
 import os
 from pyzabbix import ZabbixMetric, ZabbixSender
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 '''Disable SSL Warnings'''
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 '''
 LLD function
