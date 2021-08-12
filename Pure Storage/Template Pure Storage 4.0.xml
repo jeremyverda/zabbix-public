@@ -2275,7 +2275,7 @@
                             <master_item/>
                         </item_prototype>
                         <item_prototype>
-                            <name>{#HOSTNAME} Ouput Per Second</name>
+                            <name>{#HOSTNAME} Output Per Second</name>
                             <type>2</type>
                             <snmp_community/>
                             <snmp_oid/>
@@ -3003,7 +3003,7 @@
                             <master_item/>
                         </item_prototype>
                         <item_prototype>
-                            <name>{#VOLUMENAME} Ouput Per Second</name>
+                            <name>{#VOLUMENAME} Output Per Second</name>
                             <type>2</type>
                             <snmp_community/>
                             <snmp_oid/>
